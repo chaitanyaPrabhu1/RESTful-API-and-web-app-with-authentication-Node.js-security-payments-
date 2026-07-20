@@ -35,6 +35,16 @@ class APIFeatures{
 
     this.query.find(JSON.parse(queryStr));
   }
+
+
+  sorting(){
+    if(this.queryString.sort){
+      const sortBy = this.queryString.sort.split(',').join(' ');
+      this.query = this.query.sort(sortBy);
+    }else{
+      this.query = this.query.sort('-created');
+    }
+  }
 }
 
 
@@ -62,6 +72,8 @@ exports.getAllTours = async(req, res) => {
     match => `$${match}`
     );
     // gte, gt, lte, lt
+
+
 
 
     let query = Tour.find(JSON.parse(queryStr));
@@ -101,7 +113,9 @@ exports.getAllTours = async(req, res) => {
       }
     }
 
-    const allTours = await query;
+
+    const features =  new APIFeatures(Tour.find(), req.query).filter();
+    const allTours = await features.query;
     res.status(200).json({
       status: 'success',
       result: allTours.length,
