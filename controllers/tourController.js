@@ -7,6 +7,37 @@ const Tour = require('./../models/tourmodel');
 // );
 
 
+exports.aliasTopTours = (req, res, next)=>{
+  req.query.limit = '5';
+  req.query.sort = '-ratingsAverage,price';
+  req.query.fields = 'name,price,ratingsAverage,summary,difficulty';
+  next();
+};
+
+
+
+class APIFeatures{
+  constructor(query, queryString){
+    this.query = query;
+    this.queryString = queryString;
+  }
+
+  filter(){
+    const queryObj = {...this.queryString};
+    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    excludedFields.forEach(el=>delete queryObj[el]);
+
+    const queryStr = JSON.stringify(queryObj).replace(
+    /\b(gte|gt|lte|lt)\b/g,
+    match => `$${match}`);
+
+
+
+    this.query.find(JSON.parse(queryStr));
+  }
+}
+
+
 
 
 exports.getAllTours = async(req, res) => {
