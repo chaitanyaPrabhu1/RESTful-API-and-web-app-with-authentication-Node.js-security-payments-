@@ -1,3 +1,4 @@
+// get the query object and req.query
 class APIFeatures {
   constructor(query, queryString) {
     this.query = query;

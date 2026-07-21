@@ -16,7 +16,10 @@ exports.aliasTopTours = (req, res, next)=>{
 };
 
 
-
+/*
+Tour is model class, if the do Tour.find(), we get query object and 
+we can still do the chaining, but once we await it, we get a array of documents.
+*/
 
 exports.getAllTours = async (req, res) => {
   try {
