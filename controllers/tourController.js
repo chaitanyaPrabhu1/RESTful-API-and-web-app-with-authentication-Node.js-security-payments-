@@ -126,3 +126,60 @@ exports.deleteTour = async(req, res) => {
     });
   }
 };
+
+
+/*
+Tour.aggregate([
+  stage1,   // all documents go in here
+  stage2,   // whatever stage1 outputs goes in here
+  stage3    // whatever stage2 outputs comes out at the end
+]);
+
+
+{ $match: { ... } }   // filter documents (like a WHERE clause)
+{ $group: { ... } }   // bundle documents together and calculate stuff
+{ $sort:  { ... } }   // reorder documents
+
+{ $match: ... }        // $match is a command
+{ $gte: 4.5 }          // $gte is an operator: "greater than or equal"
+{ $avg: ... }          // $avg is an operator: "average these"
+*/
+
+
+
+exports.getTourStats = async (req, res) => {
+  try {
+    const stats = await Tour.aggregate([
+      {
+        $match: { ratingsAverage: { $gte: 4.5 } }   // its like a where clause
+      },
+      {
+        $group: {
+          _id: '$difficulty',
+          numTours: { $sum:1 },
+          numRating: { $sum: '$ratingsQuantity'},
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price'}
+        }
+      },
+      {
+        $sort: {avgPrice: 1}
+      }
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: { stats }   // ← fixed: data
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: err.message
+    });
+  }
+};
+
+
+
