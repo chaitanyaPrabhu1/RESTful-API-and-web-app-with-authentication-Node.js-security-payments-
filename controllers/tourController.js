@@ -1,11 +1,12 @@
 const Tour = require('./../models/tourmodel');
-
-
+// this is model of the schema, and its a class made by the mongoose
 
 // const tours = JSON.parse(
 //  fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
 // );
 
+
+const APIFeatures = require('./../utils/apiFeatures');
 
 exports.aliasTopTours = (req, res, next)=>{
   req.query.limit = '5';
@@ -16,114 +17,23 @@ exports.aliasTopTours = (req, res, next)=>{
 
 
 
-class APIFeatures{
-  constructor(query, queryString){
-    this.query = query;
-    this.queryString = queryString;
-  }
 
-  filter(){
-    const queryObj = {...this.queryString};
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
-    excludedFields.forEach(el=>delete queryObj[el]);
+exports.getAllTours = async (req, res) => {
+  try {
+    const features = new APIFeatures(Tour.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .pagination();
 
-    const queryStr = JSON.stringify(queryObj).replace(
-    /\b(gte|gt|lte|lt)\b/g,
-    match => `$${match}`);
-
-
-
-    this.query.find(JSON.parse(queryStr));
-  }
-
-
-  sorting(){
-    if(this.queryString.sort){
-      const sortBy = this.queryString.sort.split(',').join(' ');
-      this.query = this.query.sort(sortBy);
-    }else{
-      this.query = this.query.sort('-created');
-    }
-  }
-}
-
-
-
-
-exports.getAllTours = async(req, res) => {
-  // console.log(req.query);
-  try{
-
-    
-    // 1A) filtering-basic
-    // making a hard copy, else there will be just a shallow copy
-
-    // first build the query, then execuate the query 
-    const queryObj = {...req.query};
-    const excludedFields = ['page', 'sort', 'fields', 'limit'];
-    // remove this from the objects.
-    excludedFields.forEach(el=> delete queryObj[el]);
-
-    // 1B) Advance filtering
-    // { difficulty = easy, duration: {$gte: 5}}
-
-    const queryStr = JSON.stringify(queryObj).replace(
-    /\b(gte|gt|lte|lt)\b/g,
-    match => `$${match}`
-    );
-    // gte, gt, lte, lt
-
-
-
-
-    let query = Tour.find(JSON.parse(queryStr));
-    // Tour.find() returns the query, so we can keep chaining
-
-    // 2) sorting
-    if(req.query.sort){
-      const sortBy = req.query.sort.split(',').join(' ');
-      query = query.sort(sortBy);
-    }else{
-      query = query.sort('-createdAt');
-    }
-
-    // 3) fields limiting(limiting what should be showed)
-    if(req.query.fields){
-      const fields = req.query.fields.split(',').join(' ');
-      query = query.select(fields);
-    }else{
-      // removing __v field
-      query = query.select('-__v');
-    }
-
-
-    // 4) pagination
-    // page=2&limit=10
-    const page = req.query.page * 1
-    const limit = req.query.limit * 1 || 100;
-    const skip = (page - 1)*limit;
-    query = query.skip(skip).limit(limit);
-
-
-
-    if(req.query.page){
-      const numTours = await Tour.countDocuments();
-      if(skip >= numTours){
-        throw new Error('this page does not exits');
-      }
-    }
-
-
-    const features =  new APIFeatures(Tour.find(), req.query).filter();
     const allTours = await features.query;
+
     res.status(200).json({
       status: 'success',
-      result: allTours.length,
-      data: {
-        allTours
-      }
+      results: allTours.length,
+      data: { allTours }
     });
-  }catch(err){
+  } catch (err) {
     res.status(500).json({
       status: 'fail',
       message: err.message
