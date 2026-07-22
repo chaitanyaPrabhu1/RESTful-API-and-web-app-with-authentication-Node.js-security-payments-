@@ -77,9 +77,8 @@ tourSchema.pre('save', function(){
   });
 });
 
-tourSchema.pre('find', function(next){
+tourSchema.pre('find', function(){
   this.find({secretTour: {$ne: true}});
-  next();
 });
 
 
