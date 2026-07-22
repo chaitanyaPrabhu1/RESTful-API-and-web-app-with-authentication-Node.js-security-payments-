@@ -31,6 +31,10 @@ const tourSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  secretTour: {
+    type: Boolean,
+    default: false
+  },
   price: {
     type: Number,
     required: [true, 'A tour must have a price']
@@ -67,22 +71,17 @@ tourSchema.virtual('durationWeeks').get(function(){
 
 // document middleware, runs before
 // .save() and .create()
-tourSchema.pre('save', function(next){
+tourSchema.pre('save', function(){
   this.slug = slugify(this.name, {
     lower: true
   });
+});
 
+tourSchema.pre('find', function(next){
+  this.find({secretTour: {$ne: true}});
   next();
 });
 
-
-// post
-tourSchema.post('save', function(doc, next){
-  // does not have this, but finished document
-
-  // don't need to have next, as its last
-  next();
-});
 
 // making model
 const Tour = mongoose.model('Tour', tourSchema);
