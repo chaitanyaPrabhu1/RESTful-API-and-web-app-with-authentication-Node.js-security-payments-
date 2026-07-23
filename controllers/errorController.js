@@ -1,6 +1,4 @@
-
 // final error handler
-
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     status: err.status,
@@ -12,7 +10,8 @@ const sendErrorDev = (err, res) => {
 
 
 
-const sendErrorProd = (err, res) =>{
+const sendErrorProd = (err, res) => {
+  // operational, trusted error: send message to client
   if(err.isOperational){
     res.status(err.statusCode).json({
       status: err.status,
@@ -20,6 +19,7 @@ const sendErrorProd = (err, res) =>{
     });
   }else{
     // programming and other, don't want to leak detail to the client
+    console.log('error! Kaboom!!!');
     res.status(500).json({
       status: 'error',
       message: 'something went very wrong'

@@ -1,4 +1,4 @@
-const Tour = require('./../models/tourmodel');
+const Tour = require('../models/tourModel');
 const catchAsync = require('./../utils/catchAsync');
 const AppError = require('./../utils/appError')
 // this is model of the schema, and its a class made by the mongoose
@@ -23,7 +23,11 @@ Tour is model class, if the do Tour.find(), we get query object and
 we can still do the chaining, but once we await it, we get a array of documents.
 */
 
-exports.getAllTours = catchAsync(async (req, res) => {
+
+
+
+
+exports.getAllTours = catchAsync(async (req, res, next) => {
   const features = new APIFeatures(Tour.find(), req.query)
     .filter()
     .sort()
@@ -42,7 +46,35 @@ exports.getAllTours = catchAsync(async (req, res) => {
 
 
 
-exports.getTour = catchAsync(async (req, res) => {
+
+/*
+module.exports = (fn) => {
+  return (req, res, next) => {
+    fn(req, res, next).catch(err => next(err));
+  }
+};
+
+
+exports.getTour = (req, res, next) => {
+  fn(req, res, next).catch(err => next(err));
+};
+
+
+get tour look like, 
+
+getTour = (req, res, next) => {
+  (async (req, res, next) => {
+    const tour = await Tour.findById(req.params.id);
+    if (!tour) {
+      return next(new AppError('no tour found', 404));
+    }
+    res.status(200).json({ status: 'success', data: { tour } });
+  })(req, res, next).catch(err => next(err));
+};
+*/
+
+
+exports.getTour = catchAsync(async (req, res, next) => {
   const tour = await Tour.findById(req.params.id);
   if(!tour){
     return next(new AppError('no tour found', 404));
@@ -65,7 +97,7 @@ exports.getTour = catchAsync(async (req, res) => {
 
 // what ever which is inside the fn
 // fn is the async(req, res) function
-exports.createTour = catchAsync(async(req, res) => {
+exports.createTour = catchAsync(async(req, res, next) => {
   const newTour = await Tour.create(req.body);
   res.status(201).json({
     status: 'success',
@@ -75,7 +107,7 @@ exports.createTour = catchAsync(async(req, res) => {
   });
 });
 
-exports.updateTour = catchAsync(async (req, res) => {
+exports.updateTour = catchAsync(async (req, res, next) => {
   const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
@@ -92,7 +124,7 @@ exports.updateTour = catchAsync(async (req, res) => {
   });
 });
 
-exports.deleteTour = catchAsync(async (req, res) => {
+exports.deleteTour = catchAsync(async (req, res, next) => {
   const tour = await Tour.findByIdAndDelete(req.params.id);
 
   // Check if tour was actually found and deleted
@@ -131,7 +163,7 @@ Tour.aggregate([
 
 
 
-exports.getTourStats = catchAsync(async (req, res) => {
+exports.getTourStats = catchAsync(async (req, res, next) => {
   const stats = await Tour.aggregate([
     {
       $match: { ratingsAverage: { $gte: 4.5 } }   // its like a where clause

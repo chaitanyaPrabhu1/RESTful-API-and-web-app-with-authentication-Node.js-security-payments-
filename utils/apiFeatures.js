@@ -1,4 +1,12 @@
 // get the query object and req.query
+/*
+https://api.example.com/search?q=shoes&category=men&page=2&sort=price_asc
+└──┬──┘ └──────┬───────┘└──┬──┘└──────────────────┬───────────────────────┘
+ scheme       host        path                  query string
+*/
+
+
+
 class APIFeatures {
   constructor(query, queryString) {
     this.query = query;
@@ -29,6 +37,8 @@ class APIFeatures {
     return this;
   }
 
+  // https://api.example.com/products?fields=name,price,ratingsAverage
+
   limitFields() {
     if (this.queryString.fields) {
       const fields = this.queryString.fields.split(',').join(' ');
@@ -38,6 +48,17 @@ class APIFeatures {
     }
     return this;
   }
+
+  /*
+  API pagination is a way to split a large set of results into smaller "pages" instead of 
+  sending everything back in one giant response.
+
+  1)  page based
+      https://api.example.com/products?page=2&limit=10
+
+  2)  offset based
+      https://api.example.com/products?offset=20&limit=10
+  */
 
   pagination() {
     const page = this.queryString.page * 1 || 1;
