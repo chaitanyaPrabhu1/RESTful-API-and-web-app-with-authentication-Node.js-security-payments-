@@ -3,6 +3,7 @@ const tourController = require('./../controllers/tourController');
 
 const router = express.Router();
 
+// not the part of restful-api
 router.route('/top-5-cheap').get(tourController.aliasTopTours, tourController.getAllTours);
 
 router
@@ -11,6 +12,8 @@ router
   .post(tourController.createTour);
 
 
+
+// aggeration pipeline
 router.route('/tour-stats').get(tourController.getTourStats);
 
 

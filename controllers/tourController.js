@@ -189,6 +189,3 @@ exports.getTourStats = catchAsync(async (req, res, next) => {
     data: { stats }
   });
 });
-
-
-
