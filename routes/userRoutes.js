@@ -4,6 +4,10 @@ const authController = require('./../controllers/authController');
 
 const router = express.Router();
 
+
+
+
+// not the restful api
 router.post('/signup', authController.signup);
 
 
