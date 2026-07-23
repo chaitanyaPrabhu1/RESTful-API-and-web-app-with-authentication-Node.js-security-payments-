@@ -53,6 +53,11 @@ userSchema.pre('save', async function(){
     }
 });
 
+// jwt, encoded but not encrypted
+// header + payload + signature
+// signature = header + payload + server(saved in the server)
+
+
 
 
 

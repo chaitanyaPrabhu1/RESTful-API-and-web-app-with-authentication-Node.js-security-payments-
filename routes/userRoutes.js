@@ -9,6 +9,7 @@ const router = express.Router();
 
 // not the restful api
 router.post('/signup', authController.signup);
+router.post('/login', authController.login);
 
 
 
