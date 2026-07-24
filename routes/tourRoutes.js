@@ -1,6 +1,6 @@
 const express = require('express');
 const tourController = require('./../controllers/tourController');
-
+const authController = require('./../controllers/authController');
 const router = express.Router();
 
 // not the part of restful-api
@@ -8,7 +8,7 @@ router.route('/top-5-cheap').get(tourController.aliasTopTours, tourController.ge
 
 router
   .route('/')
-  .get(tourController.getAllTours)
+  .get(authController.protect, tourController.getAllTours)
   .post(tourController.createTour);
 
 

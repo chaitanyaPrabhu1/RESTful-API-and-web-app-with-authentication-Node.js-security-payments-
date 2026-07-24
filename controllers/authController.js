@@ -1,8 +1,19 @@
+const {promisify} = require('util');
 const User = require('./../models/userModel');
 const catchAsync = require('./../utils/catchAsync');
 const jwt = require('jsonwebtoken');
 const AppError = require('./../utils/appError');
 
+
+const signToken = id=>{
+    return jwt.sign({id}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
+}
+
+// ValidationError → catchAsync → next(err) → globalErrorHandler
+
+//==================================================================================================
+//-------------------Signing------------------------------------------------------------------------
+//==================================================================================================
 
 
 
@@ -16,12 +27,8 @@ exports.signup = catchAsync(async(req, res, next) => {
         passwordConfirm: req.body.passwordConfirm
     });
 
-    // 3. Fix JWT signing syntax
-    const token = jwt.sign(
-        { id: newUser._id },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
+    // 3. token = id + secret + expires_in
+    const token = signToken(newUser._id);
 
     // 4. Don't send password fields back to client
     newUser.password = undefined;
@@ -39,17 +46,68 @@ exports.signup = catchAsync(async(req, res, next) => {
 
 
 
-exports.login = (req, res, next)=>{
-    const {email, password} = req.body.email;
+exports.login = catchAsync(async(req, res, next)=>{
+    const {email, password} = req.body;
     // check if the email and password exits
     // checj if th user exits && password correct
     // if ok, send token to client
 
 
     if(!email || !password){
-        next(new AppError('please provide email and passworld'));
+        return next(new AppError('please provide email and password'));
     }
 
+    const user = await User.findOne({email}).select('+password');
 
-    
-};
+    // instance method
+    if(!user || (!await user.correctPassword(password, user.password))){
+        return next(new AppError('incorrect email or password', 404));
+    }
+
+    const token = signToken(user._id);
+    res.status(200).json({
+        status: 'success',
+        token
+    });
+
+});
+
+/*
+1) Split & decode – break the token into header.payload.signature, decode header to see the algorithm.
+2) Pin the algorithm – only accept the algorithm your server expects, never trust the token's own header for this.
+3) Verify signature – re-sign header+payload with your secret/public key and compare to the given signature. Mismatch = reject.
+4) Check claims – validate exp, iss, aud (and nbf if present).
+5) Trust it – if all pass, treat the payload as the authenticated user; otherwise return 401.
+*/
+
+exports.protect = catchAsync(async (req, res, next)=>{
+    // getting token and check of its there
+    // verification token
+    // check if user still exits
+    // check if user password after the token was issued
+    let token;
+    if(req.headers.authorization && req.headers.authorization.startsWith('Bearer')){
+        token = req.headers.authorization.split(' ')[1];
+    }
+    if(!token){
+        return next(new AppError('your are not logged in', 401));
+    }
+
+    // verficantion
+    const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+
+    // check if the user exits
+    const freshUser = await User.findById(decoded.id);
+    if(!freshUser){
+        return next( new AppError('the user of token does not exits', 401));
+    }
+    // check if the user changed the password after issue the token
+
+    if(freshUser.changedPasswordAfter(decoded.iat)){
+        return next(new AppError('User recently changed password! Please log in again'), 401);
+    }
+    req.user = freshUser;
+    //grand access to the next route handler
+    next();
+});

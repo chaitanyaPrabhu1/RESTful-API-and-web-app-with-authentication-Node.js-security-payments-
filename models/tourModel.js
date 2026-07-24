@@ -104,26 +104,23 @@ tourSchema.virtual('durationWeeks').get(function(){
 // document middleware, runs before
 // .save() and .create()
 // this points to document
-tourSchema.pre('save', function(next){
+tourSchema.pre('save', function(){
   this.slug = slugify(this.name, {
     lower: true
   });
-  next();
 });
 
 
 // secret tour in the db, it should not appear in the query
 // will query on the tour which are not secret
 
-tourSchema.pre('find', function(next){
-  this.find({secretTour: {$ne}});
-  next();
+tourSchema.pre('find', function(){
+  this.find({secretTour: {$ne: true}});
 });
 
-tourSchema.pre('findOne', function(next){
-  this.find({secretTour: {$ne}});
-  this.srart = Date.now();
-  next();
+tourSchema.pre('findOne', function(){
+  this.find({secretTour: {$ne: true}});
+  this.start = Date.now();
 });
 
 // aggregation middleware for the aggregation endpoint
