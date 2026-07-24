@@ -3,6 +3,7 @@ const User = require('./../models/userModel');
 const catchAsync = require('./../utils/catchAsync');
 const jwt = require('jsonwebtoken');
 const AppError = require('./../utils/appError');
+const router = require('../routes/userRoutes');
 
 
 const signToken = id=>{
@@ -24,7 +25,8 @@ exports.signup = catchAsync(async(req, res, next) => {
         name: req.body.name,
         email: req.body.email,
         password: req.body.password,
-        passwordConfirm: req.body.passwordConfirm
+        passwordConfirm: req.body.passwordConfirm,
+        role: req.body.role
     });
 
     // 3. token = id + secret + expires_in
@@ -111,3 +113,30 @@ exports.protect = catchAsync(async (req, res, next)=>{
     //grand access to the next route handler
     next();
 });
+
+// when the restrict to will be called, then 
+
+exports.restrictTo = (...roles) => {
+    return (req, res, next)=>{
+        // roles ['admin', 'lead-guide']
+        // role ['user']
+        if(!roles.includes(req.user.role)){
+            return next(new AppError('you do not have permission to perform this action', 403));
+        }
+        next();
+    }
+}
+
+
+exports.forgotPassword =  catchAsync((req, res, next)=>{
+    // 1) get user based on the posted email
+    const user = await User.findOne({email: req.body.email});
+    if(!user){
+        return next(new AppError('there is no user with that email', 404));
+    }
+    // 2) generate the random reset token
+    // 3) send it to user email
+
+
+});
+exports.resetPassword = (req, res, next)=>{}
