@@ -171,6 +171,28 @@ exports.forgotPassword =  catchAsync(async(req, res, next)=>{
 
 
 
-exports.resetPassword = (req, res, next)=>{}
+exports.resetPassword = (req, res, next)=>{
+    // 1) get user based on the token
+
+    const hashedToken = crypto.createHash('256').update(req.params.token).digest('hex');
+
+
+    const user = await User.findOne({passwordResetToken: hashedToken, passwordResetExpires:{$ge:Date.now()}});
+    // 2) if token has not expired, and there is user, set the user the new password
+    if(!user){
+        return next(new AppError('token is invalid or expired'), 400);
+    }
+
+    user.password = req.body.password;
+    user.passwordConfirm = req.body.passwordConfirm;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+    // 3) log the user in, send jwt
+    res.status(200).json({
+        status: 'success',
+        token
+    });
+};
 
 
