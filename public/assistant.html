@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link
+      href="https://fonts.googleapis.com/css?family=Lato:300,300i,700"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="shortcut icon" type="image/png" href="img/favicon.png" />
+
+    <title>Natours | AI Tour Assistant</title>
+
+    <style>
+      .assistant {
+        max-width: 80rem;
+        margin: 6rem auto;
+        padding: 0 3rem;
+      }
+
+      .assistant__intro {
+        text-align: center;
+        margin-bottom: 4rem;
+        color: #777;
+      }
+
+      .assistant__search {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 3rem;
+      }
+
+      .assistant__search input {
+        flex: 1;
+        font-family: inherit;
+        font-size: 1.6rem;
+        padding: 1.2rem 2rem;
+        border: none;
+        border-radius: 10rem;
+        background-color: #f4f4f4;
+      }
+
+      .assistant__results {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+        gap: 2rem;
+        margin-bottom: 5rem;
+      }
+
+      .assistant__result {
+        background: #fff;
+        border-radius: 3px;
+        box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+      }
+
+      .assistant__result h4 {
+        margin-bottom: 0.5rem;
+        color: #2d2d2d;
+      }
+
+      .assistant__result .score {
+        font-size: 1.2rem;
+        color: #55c57a;
+        font-weight: 700;
+      }
+
+      .assistant__chat {
+        background: #f7f7f7;
+        border-radius: 3px;
+        padding: 3rem;
+      }
+
+      .assistant__messages {
+        min-height: 20rem;
+        max-height: 40rem;
+        overflow-y: auto;
+        margin-bottom: 2rem;
+      }
+
+      .assistant__message {
+        padding: 1.2rem 1.8rem;
+        border-radius: 1.6rem;
+        margin-bottom: 1rem;
+        max-width: 70%;
+        line-height: 1.5;
+      }
+
+      .assistant__message--user {
+        background-color: #55c57a;
+        color: #fff;
+        margin-left: auto;
+        border-bottom-right-radius: 0.3rem;
+      }
+
+      .assistant__message--assistant {
+        background-color: #fff;
+        color: #333;
+        margin-right: auto;
+        border-bottom-left-radius: 0.3rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+      }
+
+      .assistant__message--error {
+        background-color: #fbeaea;
+        color: #b33;
+      }
+
+      .assistant__sources {
+        font-size: 1.2rem;
+        color: #999;
+        margin-top: 0.4rem;
+      }
+
+      .assistant__form {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .assistant__form input {
+        flex: 1;
+        font-family: inherit;
+        font-size: 1.6rem;
+        padding: 1.2rem 2rem;
+        border: none;
+        border-radius: 10rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <nav class="nav nav--tours">
+        <a href="overview.html" class="nav__el">All tours</a>
+        <a href="assistant.html" class="nav__el">AI Assistant</a>
+      </nav>
+      <div class="header__logo">
+        <img src="img/logo-white.png" alt="Natours logo" />
+      </div>
+      <nav class="nav nav--user">
+        <a href="overview.html" class="nav__el">My bookings</a>
+      </nav>
+    </header>
+
+    <main class="assistant">
+      <h2 class="heading-secondary ma-bt-lg">Ask our AI tour assistant</h2>
+      <p class="assistant__intro">
+        Search tours semantically, or chat with an assistant that only
+        recommends tours from our real catalog.
+      </p>
+
+      <form class="assistant__search" id="search-form">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="e.g. a relaxed beach trip under $1000"
+        />
+        <button class="btn btn--green" type="submit">Search</button>
+      </form>
+      <div class="assistant__results" id="search-results"></div>
+
+      <div class="assistant__chat">
+        <div class="assistant__messages" id="chat-messages"></div>
+        <form class="assistant__form" id="chat-form">
+          <input
+            type="text"
+            id="chat-input"
+            placeholder="Ask about tours, e.g. 'What's a good tour for beginners?'"
+          />
+          <button class="btn btn--green" type="submit">Send</button>
+        </form>
+      </div>
+    </main>
+
+    <script>
+      const searchForm = document.getElementById('search-form');
+      const searchInput = document.getElementById('search-input');
+      const searchResults = document.getElementById('search-results');
+
+      const chatForm = document.getElementById('chat-form');
+      const chatInput = document.getElementById('chat-input');
+      const chatMessages = document.getElementById('chat-messages');
+      const history = [];
+
+      const renderResults = tours => {
+        searchResults.innerHTML = tours
+          .map(
+            tour => `
+              <div class="assistant__result">
+                <h4>${tour.name}</h4>
+                <p>${tour.summary}</p>
+                <p>$${tour.price} &middot; ${tour.difficulty} &middot; ${tour.duration} days</p>
+                <span class="score">match: ${(tour.score * 100).toFixed(0)}%</span>
+              </div>
+            `
+          )
+          .join('');
+      };
+
+      searchForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const q = searchInput.value.trim();
+        if (!q) return;
+
+        searchResults.innerHTML = '<p>Searching…</p>';
+        try {
+          const res = await fetch(
+            `/api/v1/ai/search?q=${encodeURIComponent(q)}`
+          );
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.message || 'search failed');
+          renderResults(body.data.tours);
+        } catch (err) {
+          searchResults.innerHTML = `<p>${err.message}</p>`;
+        }
+      });
+
+      const addMessage = (role, text) => {
+        const div = document.createElement('div');
+        div.className = `assistant__message assistant__message--${role}`;
+        div.textContent = text;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return div;
+      };
+
+      chatForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        addMessage('user', message);
+        chatInput.value = '';
+        const pending = addMessage('assistant', 'Thinking…');
+
+        try {
+          const res = await fetch('/api/v1/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, history })
+          });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.message || 'chat failed');
+
+          pending.textContent = body.data.reply;
+          if (body.data.sources && body.data.sources.length) {
+            const sources = document.createElement('div');
+            sources.className = 'assistant__sources';
+            sources.textContent = `Based on: ${body.data.sources
+              .map(s => s.name)
+              .join(', ')}`;
+            pending.appendChild(sources);
+          }
+
+          history.push({ role: 'user', content: message });
+          history.push({ role: 'assistant', content: body.data.reply });
+        } catch (err) {
+          pending.classList.add('assistant__message--error');
+          pending.textContent = err.message;
+        }
+      });
+    </script>
+  </body>
+</html>

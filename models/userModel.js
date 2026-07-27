@@ -34,6 +34,7 @@ userSchema = new mongoose.Schema({
     passwordConfirm: {
         type: String,
         required: [true, 'please confirm your password'],
+        select: false,
         validate: {
             // this only work on CREATE and SAVE!!!
             validator: function(el){
@@ -44,7 +45,17 @@ userSchema = new mongoose.Schema({
     },
     passwordChangedAt: Date,
     passwordResetToken: String,
-    passwordResetExpires: Date
+    passwordResetExpires: Date,
+    active: {
+        type: Boolean,
+        default: true,
+        select: false
+    }
+});
+
+// exclude deactivated users from every find query
+userSchema.pre(/^find/, function() {
+    this.find({ active: { $ne: false } });
 });
 
 
@@ -61,6 +72,14 @@ userSchema.pre('save', async function(){
         // passwordConfirm is just needed to password validation during user creation
         this.passwordConfirm = undefined;
     }
+});
+
+// record when the password changed so existing JWTs issued before this
+// point can be invalidated (see changedPasswordAfter below)
+userSchema.pre('save', function() {
+    if (!this.isModified('password') || this.isNew) return;
+
+    this.passwordChangedAt = Date.now() - 1000;
 });
 
 // jwt, encoded but not encrypted

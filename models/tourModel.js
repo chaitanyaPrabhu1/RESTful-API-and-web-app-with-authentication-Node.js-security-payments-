@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
+const { embedText } = require('./../utils/embeddings');
 
 //**********************************this contains the bussiness logic*****************************************************
 
@@ -26,14 +27,15 @@ const tourSchema = new mongoose.Schema({
     required: [true, 'a tour should have difficulty'],
     enum: {
       values: ['easy', 'medium', 'difficult'],
-      message: ''
+      message: 'difficulty is either: easy, medium, difficult'
     }
   },
   ratingsAverage: {
     type: Number,
     default: 4.5,
     min: [1, 'rating must above 1'],
-    max: [5, 'rating must below 5']
+    max: [5, 'rating must below 5'],
+    set: val => Math.round(val * 10) / 10
   },
   ratingsQuantity:{
     type: Number,
@@ -49,13 +51,12 @@ const tourSchema = new mongoose.Schema({
   },
   priceDiscount: {
     type: Number,
-    message: 'Discount price should be below the regular price',
-    // adding custom validation
-    validator : {
-        validator: function(val){
-            return val < this.price;
-        },
-        message: 'discount price should be below the regular price'
+    validate: {
+      // this only works on document creation, not on update
+      validator: function(val){
+        return val < this.price;
+      },
+      message: 'discount price ({VALUE}) should be below the regular price'
     }
   },
   summary:{
@@ -74,9 +75,46 @@ const tourSchema = new mongoose.Schema({
   images:[String],
   createdAt: {
     type: Date,
-    default: Date.now()
+    default: Date.now(),
+    select: false
   },
-  startDates: [Date]
+  startDates: [Date],
+  // embedding vector used for semantic search / RAG retrieval, kept out of
+  // normal API responses and recomputed whenever the descriptive text changes
+  embedding: {
+    type: [Number],
+    select: false
+  },
+  startLocation: {
+    // GeoJSON
+    type: {
+      type: String,
+      default: 'Point',
+      enum: ['Point']
+    },
+    coordinates: [Number],
+    address: String,
+    description: String
+  },
+  locations: [
+    {
+      type: {
+        type: String,
+        default: 'Point',
+        enum: ['Point']
+      },
+      coordinates: [Number],
+      address: String,
+      description: String,
+      day: Number
+    }
+  ],
+  guides: [
+    {
+      type: mongoose.Schema.ObjectId,
+      ref: 'User'
+    }
+  ]
   },
   { toJSON: {virtuals: true},
     toObject: {virtuals: true}
@@ -88,6 +126,14 @@ const tourSchema = new mongoose.Schema({
 // the part of documents
 tourSchema.virtual('durationWeeks').get(function(){
   return this.duration / 7;
+});
+
+// virtual populate: reviews for this tour, without embedding the reviews
+// array in every tour document
+tourSchema.virtual('reviews', {
+  ref: 'Review',
+  foreignField: 'tour',
+  localField: '_id'
 });
 
 
@@ -110,17 +156,48 @@ tourSchema.pre('save', function(){
   });
 });
 
+// keep the semantic-search embedding in sync with the descriptive text -
+// only recompute it when that text actually changed, since generating it
+// is the slowest part of saving a tour
+tourSchema.pre('save', async function() {
+  if (
+    !this.isModified('name') &&
+    !this.isModified('summary') &&
+    !this.isModified('description') &&
+    !this.isModified('difficulty')
+  ) {
+    return;
+  }
+
+  const text = [this.name, this.summary, this.description, this.difficulty]
+    .filter(Boolean)
+    .join('. ');
+
+  try {
+    this.embedding = await embedText(text);
+  } catch (err) {
+    // don't block tour creation/updates if the local embedding model
+    // fails to load (e.g. first run without network access) - the tour
+    // just won't be included in semantic search results until it's saved
+    // again successfully
+    console.error('failed to generate tour embedding:', err.message);
+  }
+});
+
 
 // secret tour in the db, it should not appear in the query
 // will query on the tour which are not secret
 
-tourSchema.pre('find', function(){
-  this.find({secretTour: {$ne: true}});
-});
-
-tourSchema.pre('findOne', function(){
+tourSchema.pre(/^find/, function(){
   this.find({secretTour: {$ne: true}});
   this.start = Date.now();
+});
+
+tourSchema.pre(/^find/, function() {
+  this.populate({
+    path: 'guides',
+    select: '-__v -passwordChangedAt'
+  });
 });
 
 // aggregation middleware for the aggregation endpoint
